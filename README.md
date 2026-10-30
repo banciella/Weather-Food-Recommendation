@@ -2,12 +2,13 @@
 
 # 🌦️🍕 Weather Food Recommendation
 
-### Pipeline de Engenharia de Dados no Databricks que recomenda comida de acordo com o clima
+### Pipeline de Engenharia de Dados + IA no Databricks que recomenda comida de acordo com o clima
 
 ![Databricks](https://img.shields.io/badge/Databricks-Free%20Edition-FF3621?style=for-the-badge&logo=databricks&logoColor=white)
 ![PySpark](https://img.shields.io/badge/Python-PySpark-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Delta Lake](https://img.shields.io/badge/Delta%20Lake-Medallion-00ADD8?style=for-the-badge)
-![Genie](https://img.shields.io/badge/Genie%20Agent-Em%20andamento-orange?style=for-the-badge)
+![IA](https://img.shields.io/badge/IA-Genie%20Agent%20%2B%20Agentes-8A2BE2?style=for-the-badge)
+![Status IA](https://img.shields.io/badge/Camada%20de%20IA-Em%20andamento-orange?style=for-the-badge)
 ![Custo](https://img.shields.io/badge/Custo-R%24%200-2ea44f?style=for-the-badge)
 
 </div>
@@ -16,12 +17,17 @@
 
 ## 🎯 O problema de negócio
 
-Em dias de **chuva** ou de **calor intenso**, apps de delivery recomendam comidas e restaurantes diferentes, usando clima, horário e localização do usuário.
+Em dias de **chuva** ou de **calor intenso**, apps de delivery recomendam comidas e restaurantes diferentes, usando clima, horário e localização do usuário. É um caso clássico de **personalização com IA**: o contexto muda o tempo todo, e a recomendação precisa acompanhar.
 
-Este projeto reproduz esse conceito **de ponta a ponta**: ingestão de duas APIs abertas, tratamento com qualidade de dados, orquestração diária, score de recomendação e consulta em linguagem natural.
+Só que IA boa depende de **dado bom**. Um modelo ou um agente não consegue recomendar nada sem dados confiáveis, atualizados e organizados. Este projeto resolve as duas pontas:
+
+- 🏗️ **Engenharia de Dados:** ingestão de duas APIs abertas, tratamento com qualidade de dados, camadas Bronze, Silver e Gold e orquestração diária
+- 🤖 **IA sobre dados governados:** uma camada em linguagem natural, em que qualquer pessoa pergunta "o que recomendar agora na Av. Paulista?" e recebe uma resposta baseada nas tabelas Gold, e não em achismo de modelo
 
 > 🌧️ Chuva e frio → sopas, caldos, massas e comfort food
 > ☀️ Calor intenso → açaí, sorvete, saladas e comidas leves
+
+💡 **A ideia central:** o pipeline entrega o dado pronto e confiável, e a IA conversa em cima dele. Assim a resposta é rastreável até a tabela de origem, o que reduz o risco de a IA inventar informação.
 
 ---
 
@@ -34,7 +40,7 @@ flowchart LR
   B["🥉 Bronze<br/>JSON bruto em Volume"] --> D["🥈 Silver<br/>Delta limpo<br/>+ Data Quality"]
   D --> E["🥇 Gold<br/>tags de clima, scores<br/>e recomendações"]
   E --> F["📋 recommendations_today"]
-  F --> G["💬 Genie Agent<br/>linguagem natural"]
+  F --> G["🤖 Camada de IA<br/>Genie Agent + agentes<br/>linguagem natural"]
   H["⏰ Databricks Jobs<br/>diário + alertas por e-mail"] -.-> B
 ```
 
@@ -59,7 +65,7 @@ flowchart LR
 | ⚙️ Orquestração | Databricks Jobs (5 tasks em sequência) |
 | 🔔 Monitoramento | Alertas por e-mail (falha e duração) |
 | ✅ Qualidade de dados | PySpark + regras próprias + tabelas de rejeitados |
-| 💬 IA conversacional | Genie Agent sobre as tabelas Gold |
+| 🤖 IA conversacional | Genie Agent sobre as tabelas Gold (planejado: agente em código e modelo de ML) |
 | 🔀 Versionamento | Git + GitHub (Git folders do Databricks) |
 
 ---
@@ -80,6 +86,34 @@ Weather-Food-Recommendation/
 ├── 📓 12_gold_genie_metadata         → descrições das tabelas para o Genie
 └── 📄 README.md
 ```
+
+---
+
+## 🤖 IA no projeto
+
+A camada de IA fica **em cima** das tabelas Gold. Ela não substitui o pipeline, ela depende dele.
+
+| Componente | O que faz | Status |
+|---|---|---|
+| 🧠 **Contexto para a IA** | Descrições de tabelas e colunas gravadas no Unity Catalog, para que a IA entenda o significado de cada campo | ✅ Pronto |
+| 💬 **Genie Agent** | Chat em linguagem natural sobre as tabelas Gold: a pergunta vira SQL, roda e volta como tabela ou gráfico | 🔄 Em andamento |
+| 🧪 **Avaliação do agente** | Perguntas de teste (benchmarks) com resposta esperada, para medir a acurácia | 📌 Planejado |
+| 🛠️ **Agente em código** | Agente que usa o Genie e a função `recomendar(lat, lon)` como ferramentas e explica a recomendação em linguagem natural | 📌 Planejado |
+| 📈 **Modelo de ML (V2)** | Ranking treinado com pedidos simulados e comparado com a V1 por métricas offline | 📌 Planejado |
+
+### 🔎 Exemplos de perguntas para o agente
+
+- "Qual é o clima agora e quais são as 5 melhores recomendações?"
+- "Quantos restaurantes temos por categoria de comida?"
+- "Em quantas horas dos próximos 7 dias vai chover?"
+- "Quais categorias combinam mais com calor intenso?"
+
+### 🛡️ Como o projeto reduz o risco de respostas erradas da IA
+
+- 📚 As tabelas têm descrições claras, inclusive avisos de uso (por exemplo, qual tabela usar para contar restaurantes)
+- 🔒 A IA consulta **tabelas governadas** no Unity Catalog, com o SQL visível para conferência
+- 🧪 As respostas serão validadas com perguntas de teste antes de qualquer uso
+- ⚠️ A IA só sabe o que está nos dados: o projeto declara abertamente o que é real, o que é hipótese e o que é simulado
 
 ---
 
@@ -133,13 +167,14 @@ Ingest_clima → silver_clima → gold_clima → gold_scores → gold_recomendac
 - [x] Descrições das tabelas no Unity Catalog para o Genie
 
 ### 🔄 Em andamento
-- [ ] Genie Agent sobre as tabelas Gold (instruções, SQLs de exemplo e perguntas de teste)
+- [ ] 🤖 Genie Agent sobre as tabelas Gold (instruções, SQLs de exemplo e perguntas de teste)
 
 ### 📌 Próximos passos
 - [ ] Task `12_gold_genie_metadata` no job, para reaplicar as descrições após cada regravação
 - [ ] Job semanal dos restaurantes (`05` e `07`)
-- [ ] Agente em código que usa o Genie e a função de recomendação como ferramentas, e explica a sugestão em linguagem natural
-- [ ] Pedidos simulados + modelo de ML **V2**, comparado com a V1 (regras)
+- [ ] 🤖 Agente em código que usa o Genie e a função de recomendação como ferramentas, e explica a sugestão em linguagem natural
+- [ ] 🧪 Avaliação do agente com perguntas de teste e resposta esperada
+- [ ] 🤖 Pedidos simulados + modelo de ML **V2**, comparado com a V1 (regras)
 - [ ] Dashboard (AI/BI)
 - [ ] Demo em vídeo curto
 
